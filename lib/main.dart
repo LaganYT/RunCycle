@@ -155,7 +155,6 @@ class _MyHomePageState extends State<MyHomePage> {
     _baseDate = DateTime(now.year, now.month, now.day);
     _selectedDate = _baseDate;
     _loadSettings();
-    _updateStreak();
     _authorizeAndFetchData();
   }
 
@@ -166,34 +165,57 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> _updateStreak() async {
+  Future<void> _updateStreak(bool hasWorkoutToday) async {
     final prefs = await SharedPreferences.getInstance();
-    final lastOpenString = prefs.getString('lastOpenDate');
+    int currentStreak = prefs.getInt('streak') ?? 0;
+    final lastWorkoutString = prefs.getString('lastWorkoutDate');
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    int currentStreak = prefs.getInt('streak') ?? 0;
+    if (lastWorkoutString != null) {
+      final lastWorkoutDate = DateTime.parse(lastWorkoutString);
+      final difference = today.difference(lastWorkoutDate).inDays;
 
-    if (lastOpenString != null) {
-      final lastOpenDate = DateTime.parse(lastOpenString);
-      final difference = today.difference(lastOpenDate).inDays;
-
-      if (difference == 1) {
-        currentStreak++;
-      } else if (difference > 1) {
-        currentStreak = 1; // Reset streak
+      if (hasWorkoutToday) {
+        if (difference == 1) {
+          // Workout yesterday, and today. Streak continues.
+          currentStreak++;
+        } else if (difference > 1) {
+          // Gap in workouts. Check for streak ending yesterday.
+          if (await _hasWorkoutOnDate(today.subtract(const Duration(days: 1)))) {
+            currentStreak = 1; // Start of a new streak today.
+            for (int i = 1; i < 100; i++) { // Check up to 100 days back
+              if (await _hasWorkoutOnDate(today.subtract(Duration(days: i)))) {
+                currentStreak++;
+              } else {
+                break;
+              }
+            }
+          } else {
+             currentStreak = 1; // New streak starts today
+          }
+        }
+        // if difference is 0, streak was already updated. Do nothing.
+        await prefs.setString('lastWorkoutDate', today.toIso8601String());
+      } else { // No workout today
+        if (difference == 1) {
+          // Last workout was yesterday. Streak is safe for now.
+        } else if (difference > 1) {
+          // Last workout was before yesterday. Streak is broken.
+          currentStreak = 0;
+        }
       }
-      // if difference is 0, do nothing to streak.
-    } else {
-      currentStreak = 1; // First open
+    } else if (hasWorkoutToday) {
+      currentStreak = 1;
+      await prefs.setString('lastWorkoutDate', today.toIso8601String());
     }
 
-    await prefs.setString('lastOpenDate', today.toIso8601String());
     await prefs.setInt('streak', currentStreak);
-
-    setState(() {
-      _streak = currentStreak;
-    });
+    if (mounted) {
+      setState(() {
+        _streak = currentStreak;
+      });
+    }
   }
 
   @override
@@ -280,6 +302,13 @@ class _MyHomePageState extends State<MyHomePage> {
         );
         if (date == null) _isLoading = false;
       });
+
+      final today = DateTime.now();
+      if (dateToFetch.year == today.year &&
+          dateToFetch.month == today.month &&
+          dateToFetch.day == today.day) {
+        _updateStreak(workouts.isNotEmpty);
+      }
     } catch (e) {
       debugPrint("Error fetching health data for $midnight: $e");
       setState(() {
@@ -333,6 +362,17 @@ class _MyHomePageState extends State<MyHomePage> {
     return _selectedDate.year == now.year &&
         _selectedDate.month == now.month &&
         _selectedDate.day == now.day;
+  }
+
+  Future<bool> _hasWorkoutOnDate(DateTime date) async {
+    final midnight = DateTime(date.year, date.month, date.day);
+    final nextMidnight = midnight.add(const Duration(days: 1));
+    final workouts = await health.getHealthDataFromTypes(
+      startTime: midnight,
+      endTime: nextMidnight,
+      types: [HealthDataType.WORKOUT],
+    );
+    return workouts.any((p) => p.type == HealthDataType.WORKOUT);
   }
 
   @override
