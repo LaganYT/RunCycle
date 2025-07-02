@@ -1,12 +1,80 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:health/health.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+
+class NotificationService {
+  static final NotificationService _notificationService =
+      NotificationService._internal();
+
+  factory NotificationService() {
+    return _notificationService;
+  }
+
+  NotificationService._internal();
+
+  Future<void> init() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings();
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
+    );
+
+    // Configure the time zone
+    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
+  Future<void> requestPermissions() async {
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+  }
+
+  Future<void> scheduleDailyReminder(TimeOfDay time) async {
+    await requestPermissions();
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+        0,
+        'RunCycle Daily Reminder',
+        'Don\'t forget to check your activity today!',
+        _nextInstanceOfTime(time),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+              'daily_reminder_channel_id', 'Daily Reminders',
+              channelDescription: 'Channel for daily activity reminders'),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time);
+  }
+
+  tz.TZDateTime _nextInstanceOfTime(TimeOfDay time) {
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate = tz.TZDateTime(
+        tz.local, now.year, now.month, now.day, time.hour, time.minute);
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
+  }
+
+  Future<void> cancelNotifications() async {
+    await flutterLocalNotificationsPlugin.cancelAll();
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,15 +83,7 @@ Future<void> main() async {
   tz.initializeTimeZones();
 
   // Initialize notifications
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-  const DarwinInitializationSettings initializationSettingsIOS =
-      DarwinInitializationSettings();
-  const InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-    iOS: initializationSettingsIOS,
-  );
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  await NotificationService().init();
 
   runApp(const MyApp());
 }
@@ -207,11 +267,20 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _goToToday() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (_selectedDate == today) return;
+
+    setState(() {
+      _selectedDate = today;
+    });
+
     _pageController.animateToPage(
       _initialPage,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
+    // No need to call fetchData here as onPageChanged will be triggered by animateToPage
   }
 
   bool _isToday() {
@@ -251,7 +320,6 @@ class _MyHomePageState extends State<MyHomePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : PageView.builder(
-              itemCount: _initialPage + 1,
                controller: _pageController,
                onPageChanged: _onPageChanged,
                itemBuilder: (context, page) {
@@ -318,7 +386,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             leading: const Icon(Icons.local_fire_department),
                             title: const Text('Calories'),
                             trailing:
-                                Text('${_calories.toStringAsFixed(0)} kcal'),
+                              Text('${_calories.toStringAsFixed(0)} calories'),
                           ),
                         ],
                       ),
@@ -399,6 +467,7 @@ class _SettingsPageState extends State<SettingsPage> {
   TimeOfDay? _notificationTime;
   bool _useImperial = false;
   bool _settingsChanged = false;
+  final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
@@ -434,8 +503,18 @@ class _SettingsPageState extends State<SettingsPage> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
           'notificationTime', '${picked.hour}:${picked.minute}');
-      // Schedule notification logic here
+      await _notificationService.scheduleDailyReminder(picked);
     }
+  }
+
+  Future<void> _clearNotificationTime() async {
+    setState(() {
+      _notificationTime = null;
+      _settingsChanged = true;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('notificationTime');
+    await _notificationService.cancelNotifications();
   }
 
   @override
@@ -456,6 +535,13 @@ class _SettingsPageState extends State<SettingsPage> {
               subtitle: Text(_notificationTime == null
                   ? 'Not set'
                   : _notificationTime!.format(context)),
+              trailing: _notificationTime != null
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: _clearNotificationTime,
+                      tooltip: 'Clear reminder',
+                    )
+                  : null,
               onTap: () => _selectNotificationTime(context),
             ),
             SwitchListTile(
