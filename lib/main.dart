@@ -47,13 +47,18 @@ class NotificationService {
   Future<bool> requestPermissions() async {
     PermissionStatus status = await Permission.notification.status;
 
-    if (status.isDenied) {
-      status = await Permission.notification.request();
-    }
-
-    if (!status.isGranted && !status.isProvisional) {
+    if (status.isGranted || status.isProvisional) {
+      // Permissions are sufficient.
+    } else if (status.isPermanentlyDenied) {
       _showPermissionDialog();
       return false;
+    } else {
+      // isDenied, isRestricted, etc.
+      status = await Permission.notification.request();
+      if (!status.isGranted && !status.isProvisional) {
+        _showPermissionDialog();
+        return false;
+      }
     }
 
     if (Platform.isAndroid) {
@@ -100,7 +105,18 @@ class NotificationService {
   }
 
   Future<void> scheduleDailyReminder(TimeOfDay time) async {
-    await requestPermissions();
+    final List<PendingNotificationRequest> pendingRequests =
+        await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+    final bool hasExistingReminder =
+        pendingRequests.any((p) => p.id == 0);
+
+    if (!hasExistingReminder) {
+      final bool hasPermission = await requestPermissions();
+      if (!hasPermission) {
+        return;
+      }
+    }
+
     await flutterLocalNotificationsPlugin.zonedSchedule(
         0,
         'Run Reminder',
