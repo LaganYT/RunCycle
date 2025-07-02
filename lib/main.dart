@@ -129,6 +129,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Health health = Health();
   late PageController _pageController;
   static const int _initialPage = 10000;
+  int _currentPage = _initialPage;
   bool _useImperial = false;
 
   @override
@@ -258,9 +259,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onPageChanged(int page) {
-    final daysOffset = page - _pageController.page!.round();
+    if (page == _currentPage) return;
+
+    final daysOffset = page - _currentPage;
     setState(() {
       _selectedDate = _selectedDate.add(Duration(days: daysOffset));
+      _currentPage = page;
     });
     fetchData();
   }
@@ -319,6 +323,9 @@ class _MyHomePageState extends State<MyHomePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : PageView.builder(
+               physics: _isToday()
+                   ? const ClampingScrollPhysics()
+                   : const AlwaysScrollableScrollPhysics(),
                controller: _pageController,
                onPageChanged: _onPageChanged,
                itemBuilder: (context, page) {
@@ -349,9 +356,34 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Text(
-                  DateFormat.yMMMEd().format(_selectedDate),
-                  style: Theme.of(context).textTheme.headlineSmall,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios),
+                      onPressed: () {
+                        _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                    ),
+                    Text(
+                      DateFormat.yMMMEd().format(_selectedDate),
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.arrow_forward_ios),
+                      onPressed: _isToday()
+                          ? null
+                          : () {
+                              _pageController.nextPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
                 AnimatedSwitcher(
