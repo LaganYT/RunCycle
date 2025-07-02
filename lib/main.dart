@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:health/health.dart';
+import 'package:intl/intl.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier =
     ValueNotifier(ThemeMode.system);
@@ -50,6 +51,9 @@ class _MyHomePageState extends State<MyHomePage> {
   int _streak = 0;
   int _steps = 0;
   double _distance = 0.0;
+  double _calories = 0.0;
+  bool _isLoading = true;
+  DateTime _selectedDate = DateTime.now();
   Health health = Health();
 
   @override
@@ -74,44 +78,71 @@ class _MyHomePageState extends State<MyHomePage> {
     } else {
       // Handle case where user denies permission.
       debugPrint("Authorization not granted");
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> fetchData() async {
-    final now = DateTime.now();
-    final yesterday = now.subtract(const Duration(days: 1));
+    setState(() => _isLoading = true);
+    final midnight =
+        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    final nextMidnight = midnight.add(const Duration(days: 1));
 
     // Clear previous data
     setState(() {
       _steps = 0;
       _distance = 0.0;
+      _calories = 0.0;
     });
 
     try {
       // Fetch new data
       List<HealthDataPoint> healthData =
           await health.getHealthDataFromTypes(
-            startTime: yesterday,
-            endTime: now,
-            types: [
-              HealthDataType.STEPS,
-              HealthDataType.DISTANCE_WALKING_RUNNING,
-            ],
-          );
+        startTime: midnight,
+        endTime: nextMidnight,
+        types: [
+          HealthDataType.STEPS,
+          HealthDataType.DISTANCE_WALKING_RUNNING,
+          HealthDataType.ACTIVE_ENERGY_BURNED,
+        ],
+      );
 
       // Process the data
       for (HealthDataPoint point in healthData) {
         if (point.type == HealthDataType.STEPS) {
           _steps += (point.value as NumericHealthValue).numericValue.toInt();
         } else if (point.type == HealthDataType.DISTANCE_WALKING_RUNNING) {
-          _distance += (point.value as NumericHealthValue).numericValue.toDouble();
+          _distance +=
+              (point.value as NumericHealthValue).numericValue.toDouble();
+        } else if (point.type == HealthDataType.ACTIVE_ENERGY_BURNED) {
+          _calories +=
+              (point.value as NumericHealthValue).numericValue.toDouble();
         }
       }
 
       // Update the UI
-      setState(() {});
+      setState(() {
+        _isLoading = false;
+      });
     } catch (e) {
       debugPrint("Error fetching health data: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+      fetchData();
     }
   }
 
@@ -122,6 +153,11 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('RunCycle'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: () => _selectDate(context),
+            tooltip: 'Select Date',
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -140,26 +176,53 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'Your current run streak:',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            Text(
-              '$_streak days',
-              style: Theme.of(context)
-                  .textTheme
-                  .displayMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 40),
-            const Text('Today\'s stats:'),
-            Text('Steps: $_steps'),
-            Text('Distance: ${(_distance / 1000).toStringAsFixed(2)} km'),
-          ],
-        ),
+        child: _isLoading
+            ? const CircularProgressIndicator()
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Text(
+                    'Your current run streak:',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 500),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    child: Text(
+                      '$_streak days',
+                      key: ValueKey<int>(_streak),
+                      style: Theme.of(context)
+                          .textTheme
+                          .displayMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  Text(
+                      'Stats for: ${DateFormat.yMMMd().format(_selectedDate)}'),
+                  const SizedBox(height: 10),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 500),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    child: Column(
+                      key: ValueKey<String>(
+                          '$_steps$_distance$_calories'), // Unique key to trigger animation
+                      children: [
+                        Text('Steps: $_steps'),
+                        Text(
+                            'Distance: ${(_distance / 1000).toStringAsFixed(2)} km'),
+                        Text('Calories: ${_calories.toStringAsFixed(0)} kcal'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
