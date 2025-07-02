@@ -25,7 +25,11 @@ class NotificationService {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings();
+        DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
     const InitializationSettings initializationSettings =
         InitializationSettings(
       android: initializationSettingsAndroid,
@@ -40,8 +44,35 @@ class NotificationService {
   }
 
   Future<void> requestPermissions() async {
-    if (await Permission.notification.isDenied) {
-      await Permission.notification.request();
+    final status = await Permission.notification.request();
+    if (status.isDenied || status.isPermanentlyDenied) {
+      // The user has denied the permission.
+      // Show a dialog explaining why notifications are needed for reminders
+      showDialog(
+        context: navigatorKey.currentContext!,
+        builder: (BuildContext context) {
+          return AlertDialog(
+        title: const Text('Permission Required'),
+        content: const Text(
+            'Notifications are required to send daily reminders. Please enable notifications in your device settings.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+          Navigator.of(context).pop();
+          openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+          TextButton(
+            onPressed: () {
+          Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
+          ),
+        ],
+          );
+        },
+      );
     }
   }
 
@@ -91,6 +122,8 @@ class DayStats {
     this.isLoading = true,
   });
 }
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
