@@ -46,33 +46,35 @@ class NotificationService {
   Future<void> requestPermissions() async {
     final status = await Permission.notification.request();
     if (status.isDenied || status.isPermanentlyDenied) {
-      // The user has denied the permission.
-      // Show a dialog explaining why notifications are needed for reminders
-      showDialog(
-        context: navigatorKey.currentContext!,
-        builder: (BuildContext context) {
-          return AlertDialog(
-        title: const Text('Permission Required'),
-        content: const Text(
-            'Notifications are required to send daily reminders. Please enable notifications in your device settings.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-          Navigator.of(context).pop();
-          openAppSettings();
-            },
-            child: const Text('Open Settings'),
-          ),
-          TextButton(
-            onPressed: () {
-          Navigator.of(context).pop();
-            },
-            child: const Text('Cancel'),
-          ),
-        ],
-          );
-        },
-      );
+      if (navigatorKey.currentContext != null) {
+        // The user has denied the permission.
+        // Show a dialog explaining why notifications are needed for reminders
+        showDialog(
+          context: navigatorKey.currentContext!,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Permission Required'),
+              content: const Text(
+                  'Notifications are required to send daily reminders. Please enable notifications in your device settings.'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    openAppSettings();
+                  },
+                  child: const Text('Open Settings'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Cancel'),
+                ),
+              ],
+            );
+          },
+        );
+      }
     }
   }
 
@@ -143,6 +145,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'RunCycle',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
