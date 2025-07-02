@@ -5,9 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
-final ValueNotifier<ThemeMode> themeNotifier =
-    ValueNotifier(ThemeMode.system);
-
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
@@ -28,19 +25,11 @@ Future<void> main() async {
   );
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-  runApp(
-    ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (_, ThemeMode currentMode, __) {
-        return MyApp(themeMode: currentMode);
-      },
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final ThemeMode themeMode;
-  const MyApp({super.key, required this.themeMode});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +45,7 @@ class MyApp extends StatelessWidget {
             seedColor: Colors.blue, brightness: Brightness.dark),
         useMaterial3: true,
       ),
-      themeMode: themeMode,
+      themeMode: ThemeMode.system,
       home: const MyHomePage(),
     );
   }
