@@ -103,8 +103,8 @@ class NotificationService {
     await requestPermissions();
     await flutterLocalNotificationsPlugin.zonedSchedule(
         0,
-        'RunCycle Daily Reminder',
-        'Don\'t forget to check your activity today!',
+        'Run Reminder',
+        'Time to go for a run and stay active!',
         _nextInstanceOfTime(time),
         const NotificationDetails(
           android: AndroidNotificationDetails(
