@@ -76,6 +76,22 @@ class NotificationService {
   }
 }
 
+class DayStats {
+  final int steps;
+  final double distance;
+  final double calories;
+  final List<HealthDataPoint> workouts;
+  final bool isLoading;
+
+  DayStats({
+    this.steps = 0,
+    this.distance = 0.0,
+    this.calories = 0.0,
+    this.workouts = const [],
+    this.isLoading = true,
+  });
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -120,11 +136,8 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _streak = 0;
-  int _steps = 0;
-  double _distance = 0.0;
-  double _calories = 0.0;
-  List<HealthDataPoint> _workouts = [];
-  bool _isLoading = true;
+  Map<DateTime, DayStats> _dayStatsCache = {};
+  bool _isLoading = true; // For initial loading only
   DateTime _selectedDate = DateTime.now();
   DateTime _baseDate = DateTime.now(); // Add base date for PageView calculations
   Health health = Health();
@@ -210,19 +223,17 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> fetchData() async {
-    setState(() => _isLoading = true);
-    final midnight =
-        DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-    final nextMidnight = midnight.add(const Duration(days: 1));
+  Future<void> fetchData([DateTime? date]) async {
+    final dateToFetch = date ?? _selectedDate;
+    final midnight = DateTime(dateToFetch.year, dateToFetch.month, dateToFetch.day);
 
-    // Clear previous data
+    // Show loading state for the specific day
     setState(() {
-      _steps = 0;
-      _distance = 0.0;
-      _calories = 0.0;
-      _workouts = [];
+      _dayStatsCache[midnight] = DayStats(isLoading: true);
+      if (date == null) _isLoading = true;
     });
+
+    final nextMidnight = midnight.add(const Duration(days: 1));
 
     try {
       // Fetch new data
@@ -238,28 +249,43 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       );
 
+      int steps = 0;
+      double distance = 0.0;
+      double calories = 0.0;
+      List<HealthDataPoint> workouts = [];
+
       // Process the data
       for (HealthDataPoint point in healthData) {
         if (point.type == HealthDataType.STEPS) {
-          _steps += (point.value as NumericHealthValue).numericValue.toInt();
+          steps += (point.value as NumericHealthValue).numericValue.toInt();
         } else if (point.type == HealthDataType.DISTANCE_WALKING_RUNNING) {
-          _distance +=
+          distance +=
               (point.value as NumericHealthValue).numericValue.toDouble();
         } else if (point.type == HealthDataType.ACTIVE_ENERGY_BURNED) {
-          _calories +=
+          calories +=
               (point.value as NumericHealthValue).numericValue.toDouble();
         } else if (point.type == HealthDataType.WORKOUT) {
-          _workouts.add(point);
+          workouts.add(point);
         }
       }
 
-      // Update the UI
+      // Update the cache and UI
       setState(() {
-        _isLoading = false;
+        _dayStatsCache[midnight] = DayStats(
+          steps: steps,
+          distance: distance,
+          calories: calories,
+          workouts: workouts,
+          isLoading: false,
+        );
+        if (date == null) _isLoading = false;
       });
     } catch (e) {
-      debugPrint("Error fetching health data: $e");
-      setState(() => _isLoading = false);
+      debugPrint("Error fetching health data for $midnight: $e");
+      setState(() {
+        _dayStatsCache[midnight] = DayStats(isLoading: false); // Stop loading on error
+        if (date == null) _isLoading = false;
+      });
     }
   }
 
@@ -268,12 +294,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final daysOffset = page - _initialPage;
     final newDate = _baseDate.add(Duration(days: daysOffset));
+    final dayOnly = DateTime(newDate.year, newDate.month, newDate.day);
     
     setState(() {
       _selectedDate = newDate;
       _currentPage = page;
     });
-    fetchData();
+
+    if (!_dayStatsCache.containsKey(dayOnly)) {
+      fetchData(newDate);
+    }
   }
 
   void _goToToday() {
@@ -291,7 +321,11 @@ class _MyHomePageState extends State<MyHomePage> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
-    fetchData();
+    // Data for today will be fetched by onPageChanged or initial load.
+    // If it's already today, we can force a refresh.
+    if (_isToday()) {
+      fetchData();
+    }
   }
 
   bool _isToday() {
@@ -331,16 +365,23 @@ class _MyHomePageState extends State<MyHomePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : PageView.builder(
-               physics: _isToday()
-                   ? const ClampingScrollPhysics()
-                   : const AlwaysScrollableScrollPhysics(),
                controller: _pageController,
                onPageChanged: _onPageChanged,
                itemBuilder: (context, page) {
                  final daysOffset = page - _initialPage;
                  final date = _baseDate.add(Duration(days: daysOffset));
+                 final dayOnly = DateTime(date.year, date.month, date.day);
+
+                 final dayStats = _dayStatsCache[dayOnly] ?? DayStats(isLoading: true);
+                 if (dayStats.isLoading && _dayStatsCache[dayOnly] == null) {
+                   // This check prevents re-fetching if already loading
+                   // It might be called when page is scrolling into view
+                   Future.microtask(() => fetchData(date));
+                 }
+
                  return RefreshIndicator(
-                     onRefresh: fetchData, child: _buildDayView(date));
+                     onRefresh: () => fetchData(date),
+                     child: _buildDayView(date, dayStats));
                },
              ),
       floatingActionButton:
@@ -353,11 +394,15 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildDayView(DateTime date) {
+  Widget _buildDayView(DateTime date, DayStats stats) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final bool isTodayPage =
         date.year == today.year && date.month == today.month && date.day == today.day;
+
+    if (stats.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     return LayoutBuilder(builder: (context, constraints) {
       return SingleChildScrollView(
@@ -409,8 +454,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   },
                   child: Card(
                     // include the `date` in the key so stats always remap to the right page
-                    key: ValueKey<String>(
-                        'stats_${date.toIso8601String()}_$_steps$_distance$_calories'),
+                    key: ValueKey<String>('stats_${date.toIso8601String()}'),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -421,20 +465,20 @@ class _MyHomePageState extends State<MyHomePage> {
                           ListTile(
                             leading: const Icon(Icons.directions_walk),
                             title: const Text('Steps'),
-                            trailing: Text('$_steps'),
+                            trailing: Text('${stats.steps}'),
                           ),
                           ListTile(
                             leading: const Icon(Icons.map),
                             title: const Text('Distance'),
                             trailing: Text(_useImperial
-                                ? '${(_distance * 0.000621371).toStringAsFixed(2)} mi'
-                                : '${(_distance / 1000).toStringAsFixed(2)} km'),
+                                ? '${(stats.distance * 0.000621371).toStringAsFixed(2)} mi'
+                                : '${(stats.distance / 1000).toStringAsFixed(2)} km'),
                           ),
                           ListTile(
                             leading: const Icon(Icons.local_fire_department),
                             title: const Text('Calories'),
                             trailing:
-                              Text('${_calories.toStringAsFixed(0)} cal'),
+                              Text('${stats.calories.toStringAsFixed(0)} cal'),
                           ),
                         ],
                       ),
@@ -442,7 +486,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                if (_workouts.isNotEmpty)
+                if (stats.workouts.isNotEmpty)
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 500),
                     transitionBuilder:
@@ -450,7 +494,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       return FadeTransition(opacity: animation, child: child);
                     },
                     child: Card(
-                      key: ValueKey<int>(_workouts.hashCode),
+                      key: ValueKey<int>(stats.workouts.hashCode),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -458,7 +502,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             Text('Workouts',
                                 style: Theme.of(context).textTheme.titleLarge),
                             const SizedBox(height: 10),
-                            ..._workouts.map((workout) {
+                            ...stats.workouts.map((workout) {
                               final workoutData =
                                   workout.value as WorkoutHealthValue;
                               final activityType =
