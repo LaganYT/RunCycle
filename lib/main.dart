@@ -198,9 +198,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onPageChanged(int page) {
-    final newDate = DateTime.now()
-        .subtract(Duration(days: _initialPage - page))
-        .toLocal();
+    final daysOffset = _initialPage - page;
+    final newDate = DateTime.now().subtract(Duration(days: daysOffset)).toLocal();
     setState(() {
       _selectedDate = DateTime(newDate.year, newDate.month, newDate.day);
     });
@@ -214,7 +213,6 @@ class _MyHomePageState extends State<MyHomePage> {
       curve: Curves.easeInOut,
     );
   }
-
 
   bool _isToday() {
     final now = DateTime.now();
@@ -253,15 +251,16 @@ class _MyHomePageState extends State<MyHomePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : PageView.builder(
-              controller: _pageController,
-              onPageChanged: _onPageChanged,
-              itemBuilder: (context, page) {
-                final date = DateTime.now()
-                    .subtract(Duration(days: _initialPage - page));
-                return RefreshIndicator(
-                    onRefresh: fetchData, child: _buildDayView(date));
-              },
-            ),
+              itemCount: _initialPage + 1,
+               controller: _pageController,
+               onPageChanged: _onPageChanged,
+               itemBuilder: (context, page) {
+                 final date = DateTime.now()
+                     .subtract(Duration(days: _initialPage - page));
+                 return RefreshIndicator(
+                     onRefresh: fetchData, child: _buildDayView(date));
+               },
+             ),
       floatingActionButton:
           !_isToday() ? FloatingActionButton(
               onPressed: _goToToday,
