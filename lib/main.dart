@@ -126,6 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<HealthDataPoint> _workouts = [];
   bool _isLoading = true;
   DateTime _selectedDate = DateTime.now();
+  DateTime _baseDate = DateTime.now(); // Add base date for PageView calculations
   Health health = Health();
   late PageController _pageController;
   static const int _initialPage = 10000;
@@ -136,6 +137,10 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _initialPage);
+    // Initialize base date to today
+    final now = DateTime.now();
+    _baseDate = DateTime(now.year, now.month, now.day);
+    _selectedDate = _baseDate;
     _loadSettings();
     _updateStreak();
     _authorizeAndFetchData();
@@ -261,9 +266,11 @@ class _MyHomePageState extends State<MyHomePage> {
   void _onPageChanged(int page) {
     if (page == _currentPage) return;
 
-    final daysOffset = page - _currentPage;
+    final daysOffset = page - _initialPage;
+    final newDate = _baseDate.add(Duration(days: daysOffset));
+    
     setState(() {
-      _selectedDate = _selectedDate.add(Duration(days: daysOffset));
+      _selectedDate = newDate;
       _currentPage = page;
     });
     fetchData();
@@ -272,10 +279,11 @@ class _MyHomePageState extends State<MyHomePage> {
   void _goToToday() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    if (_selectedDate == today) return;
-
+    
     setState(() {
       _selectedDate = today;
+      _baseDate = today;
+      _currentPage = _initialPage;
     });
 
     _pageController.animateToPage(
@@ -283,7 +291,7 @@ class _MyHomePageState extends State<MyHomePage> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
-    // No need to call fetchData here as onPageChanged will be triggered by animateToPage
+    fetchData();
   }
 
   bool _isToday() {
@@ -329,8 +337,8 @@ class _MyHomePageState extends State<MyHomePage> {
                controller: _pageController,
                onPageChanged: _onPageChanged,
                itemBuilder: (context, page) {
-                 final date = DateTime.now()
-                     .subtract(Duration(days: _initialPage - page));
+                 final daysOffset = page - _initialPage;
+                 final date = _baseDate.add(Duration(days: daysOffset));
                  return RefreshIndicator(
                      onRefresh: fetchData, child: _buildDayView(date));
                },
