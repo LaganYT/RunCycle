@@ -258,10 +258,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onPageChanged(int page) {
-    final daysOffset = _initialPage - page;
-    final newDate = DateTime.now().subtract(Duration(days: daysOffset)).toLocal();
+    final daysOffset = page - _pageController.page!.round();
     setState(() {
-      _selectedDate = DateTime(newDate.year, newDate.month, newDate.day);
+      _selectedDate = _selectedDate.add(Duration(days: daysOffset));
     });
     fetchData();
   }
@@ -332,7 +331,7 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton:
           !_isToday() ? FloatingActionButton(
               onPressed: _goToToday,
-              child: const Icon(Icons.today),
+              child: const Icon(Icons.calendar_today),
               tooltip: 'Go to Today',
             )
           : null,
