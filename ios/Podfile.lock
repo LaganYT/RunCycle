@@ -6,6 +6,8 @@ PODS:
     - Flutter
   - flutter_timezone (0.0.1):
     - Flutter
+  - flutter_web_auth (0.4.3):
+    - Flutter
   - health (13.1.1):
     - Flutter
   - package_info_plus (0.4.5):
@@ -23,6 +25,7 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - flutter_timezone (from `.symlinks/plugins/flutter_timezone/ios`)
+  - flutter_web_auth (from `.symlinks/plugins/flutter_web_auth/ios`)
   - health (from `.symlinks/plugins/health/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
@@ -38,6 +41,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_local_notifications/ios"
   flutter_timezone:
     :path: ".symlinks/plugins/flutter_timezone/ios"
+  flutter_web_auth:
+    :path: ".symlinks/plugins/flutter_web_auth/ios"
   health:
     :path: ".symlinks/plugins/health/ios"
   package_info_plus:
@@ -54,6 +59,7 @@ SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_local_notifications: ff50f8405aaa0ccdc7dcfb9022ca192e8ad9688f
   flutter_timezone: ffb07bdad3c6276af8dada0f11978d8a1f8a20bb
+  flutter_web_auth: 71382897b8dc10ad94a2928cbb09ddf515749808
   health: d215443242b260036fa91f91d8f3504c327a127f
   package_info_plus: c0502532a26c7662a62a356cebe2692ec5fe4ec4
   permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
