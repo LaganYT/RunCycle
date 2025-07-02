@@ -386,7 +386,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             leading: const Icon(Icons.local_fire_department),
                             title: const Text('Calories'),
                             trailing:
-                              Text('${_calories.toStringAsFixed(0)} calories'),
+                              Text('${_calories.toStringAsFixed(0)} cal'),
                           ),
                         ],
                       ),
@@ -426,7 +426,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 subtitle: Text(
                                     '${workout.dateFrom.toLocal().hour}:${workout.dateFrom.toLocal().minute.toString().padLeft(2, '0')} - ${workout.dateTo.toLocal().hour}:${workout.dateTo.toLocal().minute.toString().padLeft(2, '0')}'),
                                 trailing: Text(
-                                    '${workoutData.totalEnergyBurned?.round() ?? 0} kcal'),
+                                    '${workoutData.totalEnergyBurned?.round() ?? 0} cal'),
                               );
                             }).toList(),
                           ],
