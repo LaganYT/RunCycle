@@ -1,8 +1,8 @@
 name: runcycle
-description: "A new Flutter project."
+description: "Motivate yourself with RunCycle!"
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.0
 
 environment:
   sdk: ^3.8.1
