@@ -21,6 +21,9 @@ dependencies:
   shared_preferences: ^2.5.3
   timezone: ^0.10.1
   flutter_timezone: ^1.0.8
+  http: ^1.2.2
+  package_info_plus: ^8.0.0
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -33,7 +36,7 @@ flutter_launcher_icons:
   image_path: "assets/icon.png"
   min_sdk_android: 21 # android min sdk min:16, default 21
 
-  flutter_lints: ^5.0.0
+flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true

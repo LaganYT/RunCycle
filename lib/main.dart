@@ -1,16 +1,124 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:health/health.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:url_launcher/url_launcher.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+
+class UpdateService {
+  // Replace with your actual version check URL
+  static const String _versionUrl = 'https://laganyt.github.io/RunCycle/update.json';
+
+  static Future<void> checkForUpdate(BuildContext context, {bool manualCheck = false}) async {
+    try {
+      // Get current app version
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+
+      // Fetch latest version info
+      final response = await http.get(Uri.parse(_versionUrl));
+      if (response.statusCode != 200) {
+        if (manualCheck) _showErrorDialog(context, 'Failed to check for updates.');
+        return;
+      }
+
+      final json = jsonDecode(response.body);
+      final latestVersion = json['version'] as String;
+      final updateUrl = json['url'] as String;
+
+      // Compare versions
+      if (_isNewerVersion(latestVersion, currentVersion)) {
+        _showUpdateDialog(context, latestVersion, updateUrl);
+      } else if (manualCheck) {
+        _showNoUpdateDialog(context);
+      }
+    } catch (e) {
+      debugPrint('Update check failed: $e');
+      if (manualCheck) _showErrorDialog(context, 'An error occurred while checking for updates.');
+    }
+  }
+
+  static bool _isNewerVersion(String newVersion, String oldVersion) {
+    final newParts = newVersion.split('.').map(int.parse).toList();
+    final oldParts = oldVersion.split('.').map(int.parse).toList();
+
+    for (var i = 0; i < newParts.length; i++) {
+      if (i >= oldParts.length) return true; // e.g., 1.0.1 vs 1.0
+      if (newParts[i] > oldParts[i]) return true;
+      if (newParts[i] < oldParts[i]) return false;
+    }
+    return false;
+  }
+
+  static void _showUpdateDialog(BuildContext context, String version, String url) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Available'),
+        content: Text('A new version ($version) is available. Please update to the latest version for new features and bug fixes.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Later'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: const Text('Update Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static void _showNoUpdateDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('No Updates'),
+        content: const Text('You are already using the latest version.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class NotificationService {
   static final NotificationService _notificationService =
@@ -232,6 +340,9 @@ class _MyHomePageState extends State<MyHomePage> {
     _selectedDate = _baseDate;
     _loadSettings();
     _authorizeAndFetchData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkForUpdate(context);
+    });
   }
 
   Future<void> _loadSettings() async {
@@ -481,25 +592,25 @@ class _MyHomePageState extends State<MyHomePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : PageView.builder(
-               controller: _pageController,
-               onPageChanged: _onPageChanged,
-               itemBuilder: (context, page) {
-                 final daysOffset = page - _initialPage;
-                 final date = _baseDate.add(Duration(days: daysOffset));
-                 final dayOnly = DateTime(date.year, date.month, date.day);
+                 controller: _pageController,
+                 onPageChanged: _onPageChanged,
+                 itemBuilder: (context, page) {
+                   final daysOffset = page - _initialPage;
+                   final date = _baseDate.add(Duration(days: daysOffset));
+                   final dayOnly = DateTime(date.year, date.month, date.day);
 
-                 final dayStats = _dayStatsCache[dayOnly] ?? DayStats(isLoading: true);
-                 if (dayStats.isLoading && _dayStatsCache[dayOnly] == null) {
-                   // This check prevents re-fetching if already loading
-                   // It might be called when page is scrolling into view
-                   Future.microtask(() => fetchData(date));
-                 }
+                   final dayStats = _dayStatsCache[dayOnly] ?? DayStats(isLoading: true);
+                   if (dayStats.isLoading && _dayStatsCache[dayOnly] == null) {
+                     // This check prevents re-fetching if already loading
+                     // It might be called when page is scrolling into view
+                     Future.microtask(() => fetchData(date));
+                   }
 
-                 return RefreshIndicator(
-                     onRefresh: () => fetchData(date),
-                     child: _buildDayView(date, dayStats));
-               },
-             ),
+                   return RefreshIndicator(
+                       onRefresh: () => fetchData(date),
+                       child: _buildDayView(date, dayStats));
+                 },
+               ),
       floatingActionButton:
           !_isToday() ? FloatingActionButton(
               onPressed: _goToToday,
@@ -764,6 +875,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setBool('useImperial', value);
               },
+            ),
+            ListTile(
+              title: const Text('Check for Updates'),
+              onTap: () => UpdateService.checkForUpdate(context, manualCheck: true),
             ),
           ],
         ),
