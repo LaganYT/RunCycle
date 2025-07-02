@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installation Instructions</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; margin: 20px; line-height: 1.6; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; padding: 15px; background-color: #f9f9f9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .instructions { display: none; margin-top: 20px; }
+        .instructions h2 { color: #007aff; border-bottom: 2px solid #007aff; padding-bottom: 5px; }
+        .instructions ol, .instructions ul { padding-left: 20px; }
+        .instructions li { margin-bottom: 10px; }
+        .note { font-style: italic; color: #555; background-color: #eef; padding: 10px; border-left: 3px solid #007aff; border-radius: 4px; margin-top: 10px;}
+        .code { background-color: #e0e0e0; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        a { color: #007aff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .home-link { display: inline-block; margin-top: 20px; padding: 10px 15px; background-color: #007aff; color: white; border-radius: 5px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Installation Instructions</h1>
+        <p><strong>Version:</strong> <span id="version"></span></p>
+        <p><strong>Update Message:</strong> <span id="update-message"></span></p>
+
+        <div id="ios-instructions" class="instructions">
+            <h2>iOS Installation (using a signing service like Signulous)</h2>
+            <a href="https://laganyt.github.io/RunCycle/updates/RunCycle.ipa">Click here to download IPA file</a>
+            <p>Once the <code>.ipa</code> file has downloaded, you'll need to sign and install it on your device. iOS requires apps to be signed to be installed. Here's a general guide using a service like Signulous:</p>
+            <ol>
+                <li><strong>Download the <code>.ipa</code> file:</strong> Ensure the <code>RunCycle.ipa</code> file has finished downloading to your computer or device.</li>
+                <li><strong>Sign up/Log in to a signing service:</strong> Go to a service like <a href="https://www.signulous.com/" target="_blank" rel="noopener noreferrer">Signulous</a> (or any other IPA signing service you prefer). These services usually require a subscription.</li>
+                <li><strong>Register your device UDID:</strong> Most signing services will require your device's UDID (Unique Device Identifier) to be registered with them. Follow their instructions to find and add your UDID.</li>
+                <li><strong>Upload the <code>.ipa</code> file:</strong> In the signing service's dashboard, find an option to upload or sign an IPA. Upload the <code>RunCycle.ipa</code> file you downloaded.</li>
+                <li><strong>Sign the app:</strong> Follow the service's prompts to sign the application. This might involve selecting your registered device.</li>
+                <li><strong>Install the app:</strong> Once signed, the service will provide a way to install the app on your iOS device. This is often via a custom installation link or by downloading the signed IPA and installing it through tools like Sideloadly (if installing from a computer) or directly on device if the service supports it.</li>
+            </ol>
+            <p class="note"><strong>Note:</strong> The exact steps can vary slightly depending on the signing service you use. Always follow the specific instructions provided by your chosen service. Using signing services typically involves a fee. There are alternative methods like AltStore or Sideloadly if you prefer to manage signing yourself, which may require a computer.</p>
+        </div>
+
+        <div id="android-instructions" class="instructions">
+            <h2>Android Installation (APK)</h2>
+            <a href="https://laganyt.github.io/RunCycle/updates/RunCycle.apk">Click here to download APK file</a>
+            <p>Once the <code>.apk</code> file has downloaded, you can install it on your Android device:</p>
+            <ol>
+                <li><strong>Download the <code>.apk</code> file:</strong> Ensure the <code>RunCycle.apk</code> file has finished downloading.</li>
+                <li><strong>Locate the <code>.apk</code> file:</strong> Open your device's "Files", "My Files", or "Downloads" app to find the downloaded <code>RunCycle.apk</code> file.</li>
+                <li><strong>Allow installation from unknown sources (if needed):</strong>
+                    <ul>
+                        <li>When you tap the APK file for the first time, Android will likely ask you to grant permission to the app (e.g., your browser or file manager) to install unknown apps.</li>
+                        <li>Tap "Settings" on the prompt, then enable "Allow from this source" for that app.</li>
+                        <li>If you don't see a prompt, you might need to enable it manually:
+                            <ul>
+                                <li>Go to <span class="code">Settings > Apps</span>.</li>
+                                <li>Look for <span class="code">Special app access</span> (it might be under a "three-dot" menu).</li>
+                                <li>Tap <span class="code">Install unknown apps</span>.</li>
+                                <li>Select the app you used to download/open the APK (e.g., Chrome, Files by Google) and toggle "Allow from this source".</li>
+                                <li>Older Android versions might have this setting under <span class="code">Settings > Security > Unknown sources</span>.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li><strong>Install the app:</strong> Go back and tap on the <code>RunCycle.apk</code> file again. A prompt will appear asking if you want to install the application. Tap "Install".</li>
+                <li><strong>Open the app:</strong> Once the installation is complete, you can find RunCycle in your app drawer and open it.</li>
+            </ol>
+            <p class="note"><strong>Note:</strong> The exact menu names and paths for settings can vary slightly depending on your Android version and device manufacturer.</p>
+        </div>
+
+        <div id="no-os-instructions" class="instructions">
+            <h2>Installation Instructions</h2>
+            <p>We couldn't determine your operating system, or it was not specified.</p>
+            <p>Please choose the appropriate instructions if you know your OS:</p>
+            <ul>
+                <li><a href="#" onclick="showInstructions('ios'); return false;">View iOS Instructions</a></li>
+                <li><a href="#" onclick="showInstructions('android'); return false;">View Android Instructions</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        async function fetchUpdateInfo() {
+            const response = await fetch('update.json');
+            const data = await response.json();
+            document.getElementById('version').textContent = data.version;
+            document.getElementById('update-message').textContent = data.message;
+        }
+
+        function showInstructions(os) {
+            document.getElementById('ios-instructions').style.display = 'none';
+            document.getElementById('android-instructions').style.display = 'none';
+            document.getElementById('no-os-instructions').style.display = 'none';
+
+            if (os === 'ios') {
+                document.getElementById('ios-instructions').style.display = 'block';
+                window.location.href = "https://laganyt.github.io/RunCycle/updates/RunCycle.ipa"; // Auto-start download for iOS
+            } else if (os === 'android') {
+                document.getElementById('android-instructions').style.display = 'block';
+                window.location.href = "https://laganyt.github.io/RunCycle/updates/RunCycle.apk"; // Auto-start download for Android
+            } else {
+                document.getElementById('no-os-instructions').style.display = 'block';
+            }
+        }
+
+        window.onload = function() {
+            fetchUpdateInfo();
+            var userAgent = navigator.userAgent || navigator.vendor || window.opera;
+
+            // Detect iOS
+            if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+                showInstructions('ios');
+            }
+            // Detect Android
+            else if (/android/i.test(userAgent)) {
+                showInstructions('android');
+            }
+            // Default to no OS detected
+            else {
+                showInstructions(null);
+            }
+        };
+
+        function redirectTo(os) {
+            showInstructions(os);
+        };
+    </script>
+</body>
+</html>
