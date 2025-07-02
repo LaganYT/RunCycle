@@ -44,31 +44,29 @@ class NotificationService {
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  Future<void> requestPermissions() async {
+  Future<bool> requestPermissions() async {
     PermissionStatus status = await Permission.notification.status;
 
-    if (status.isGranted) {
-      // Permission is already granted
-    } else if (status.isDenied) {
-      // Permission is denied, but we can request it
+    if (status.isDenied) {
       status = await Permission.notification.request();
-      if (!status.isGranted) {
-        // Show dialog if permission is still not granted
-        _showPermissionDialog();
-        return;
-      }
-    } else {
-      // Handle other cases like permanently denied
+    }
+
+    if (!status.isGranted && !status.isProvisional) {
       _showPermissionDialog();
-      return;
+      return false;
     }
 
     if (Platform.isAndroid) {
-      final alarmStatus = await Permission.scheduleExactAlarm.status;
+      PermissionStatus alarmStatus = await Permission.scheduleExactAlarm.status;
       if (alarmStatus.isDenied) {
-        await Permission.scheduleExactAlarm.request();
+        alarmStatus = await Permission.scheduleExactAlarm.request();
+      }
+      if (!alarmStatus.isGranted) {
+        // Optionally, show a dialog explaining why exact alarms are needed.
+        return false;
       }
     }
+    return true;
   }
 
   void _showPermissionDialog() {
