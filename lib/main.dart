@@ -12,8 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:url_launcher/url_launcher.dart';
-import 'services/strava_service.dart';
-import 'package:uuid/uuid.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -414,6 +412,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _authorizeAndFetchData() async {
+    // Define the health data types we want to read.
     final types = [
       HealthDataType.STEPS,
       HealthDataType.DISTANCE_WALKING_RUNNING,
@@ -421,49 +420,13 @@ class _MyHomePageState extends State<MyHomePage> {
       HealthDataType.WORKOUT,
     ];
 
-    bool requested = false;
-    if (!Platform.isIOS) {
-      requested = await health.requestAuthorization(types);
-    }
+    // Request authorization to read the data.
+    bool requested = await health.requestAuthorization(types);
 
     if (requested) {
       fetchData();
-    }
-    else if (Platform.isIOS) {
-      // fallback to Strava when HealthKit entitlement isn't available
-      final strava = StravaService();
-      await strava.authenticate();
-      final activities = await strava.fetchActivities(
-        after: DateTime.now().subtract(const Duration(days: 1)),
-      );
-      setState(() {
-        final today = DateTime.now();
-        final midnight = DateTime(today.year, today.month, today.day);
-        // simple mapping of Strava activities into a single DayStats
-        _dayStatsCache[midnight] = DayStats(
-          workouts: activities.map((a) {
-            return HealthDataPoint(
-              uuid: const Uuid().v4(), // Generate a unique identifier
-              value: WorkoutHealthValue(
-                workoutActivityType: HealthWorkoutActivityType.RUNNING, // Example activity type
-                totalEnergyBurned: 0, // Example energy burned
-              ),
-              type: HealthDataType.WORKOUT,
-              unit: HealthDataUnit.NO_UNIT,
-              dateFrom: DateTime.parse(a['start_date_local']),
-              dateTo: DateTime.parse(a['start_date_local'])
-                  .add(Duration(seconds: a['elapsed_time'])),
-              sourceDeviceId: 'unknown',
-              sourceId: 'strava_activity_${a['id']}',
-              sourcePlatform: HealthPlatformType.appleHealth, // fallback for Strava
-              sourceName: 'Strava',
-              );
-          }).toList(),
-          isLoading: false,
-        );
-        _isLoading = false;
-      });
     } else {
+      // Handle case where user denies permission.
       debugPrint("Authorization not granted");
       setState(() => _isLoading = false);
     }
