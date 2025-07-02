@@ -354,6 +354,11 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildDayView(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final bool isTodayPage =
+        date.year == today.year && date.month == today.month && date.day == today.day;
+
     return LayoutBuilder(builder: (context, constraints) {
       return SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -376,13 +381,15 @@ class _MyHomePageState extends State<MyHomePage> {
                         );
                       },
                     ),
+                    // use the local `date`, not `_selectedDate`
                     Text(
-                      DateFormat.yMMMEd().format(_selectedDate),
+                      DateFormat.yMMMEd().format(date),
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     IconButton(
                       icon: const Icon(Icons.arrow_forward_ios),
-                      onPressed: _isToday()
+                      // disable when this page *is* today
+                      onPressed: isTodayPage
                           ? null
                           : () {
                               _pageController.nextPage(
@@ -401,7 +408,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     return FadeTransition(opacity: animation, child: child);
                   },
                   child: Card(
-                    key: ValueKey<String>('stats_$_steps$_distance$_calories'),
+                    // include the `date` in the key so stats always remap to the right page
+                    key: ValueKey<String>(
+                        'stats_${date.toIso8601String()}_$_steps$_distance$_calories'),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
