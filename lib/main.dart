@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -44,37 +45,59 @@ class NotificationService {
   }
 
   Future<void> requestPermissions() async {
-    final status = await Permission.notification.request();
-    if (status.isDenied || status.isPermanentlyDenied) {
-      if (navigatorKey.currentContext != null) {
-        // The user has denied the permission.
-        // Show a dialog explaining why notifications are needed for reminders
-        showDialog(
-          context: navigatorKey.currentContext!,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Permission Required'),
-              content: const Text(
-                  'Notifications are required to send daily reminders. Please enable notifications in your device settings.'),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    openAppSettings();
-                  },
-                  child: const Text('Open Settings'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Cancel'),
-                ),
-              ],
-            );
-          },
-        );
+    PermissionStatus status = await Permission.notification.status;
+
+    if (status.isGranted) {
+      // Permission is already granted
+    } else if (status.isDenied) {
+      // Permission is denied, but we can request it
+      status = await Permission.notification.request();
+      if (!status.isGranted) {
+        // Show dialog if permission is still not granted
+        _showPermissionDialog();
+        return;
       }
+    } else {
+      // Handle other cases like permanently denied
+      _showPermissionDialog();
+      return;
+    }
+
+    if (Platform.isAndroid) {
+      final alarmStatus = await Permission.scheduleExactAlarm.status;
+      if (alarmStatus.isDenied) {
+        await Permission.scheduleExactAlarm.request();
+      }
+    }
+  }
+
+  void _showPermissionDialog() {
+    if (navigatorKey.currentContext != null) {
+      showDialog(
+        context: navigatorKey.currentContext!,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Permission Required'),
+            content: const Text(
+                'Notifications are required to send daily reminders. Please enable notifications in your device settings.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  openAppSettings();
+                },
+                child: const Text('Open Settings'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
     }
   }
 
@@ -89,6 +112,9 @@ class NotificationService {
           android: AndroidNotificationDetails(
               'daily_reminder_channel_id', 'Daily Reminders',
               channelDescription: 'Channel for daily activity reminders'),
+          iOS: DarwinNotificationDetails(
+            interruptionLevel: InterruptionLevel.timeSensitive,
+          ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time);
